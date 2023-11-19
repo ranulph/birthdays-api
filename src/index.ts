@@ -41,11 +41,6 @@ export class BIRTHDAYS_DO {
 
 	async fetch(request: Request, env: Env) {
 
-		let currentAlarm = await this.state.storage.getAlarm();
-		if (currentAlarm == null) {
-		  this.state.storage.setAlarm(Date.now() + 10800000);
-		}
-
 		if (request.method === 'OPTIONS') {
 			return new Response(JSON.stringify({ ok: true }), {
 				headers: {
@@ -203,8 +198,8 @@ export class BIRTHDAYS_DO {
 		let birthdays: Birthday[] = await this.state.storage?.get("birthdays") ?? [];
 		let updatedBirthdays = birthdays;
 
+		let currentTUnix = Date.parse(new Date().toString());
 		birthdays.forEach(async (birthday) => {
-			let currentTUnix = Date.parse(new Date().toString());
 			if (birthday.nextBirthday < currentTUnix) {
 				let b = new Date(birthday.nextBirthday)
 				b.setFullYear(b.getFullYear() + 1);
@@ -212,14 +207,16 @@ export class BIRTHDAYS_DO {
 				updatedBirthdays.splice((updatedBirthdays.findIndex(birthdayItem => birthdayItem.id === birthday.id)), 1, birthday);
 			} else {
 
-				if (birthday.nextBirthday > currentTUnix && birthday.nextBirthday < (currentTUnix + 10800000)) await this.env.EMAILER_QUEUE.send(birthday);
-				if (birthday.nextBirthday > (currentTUnix + 86400000) && birthday.nextBirthday < (currentTUnix + 97200000)) await this.env.EMAILER_QUEUE.send(birthday);
-				if (birthday.nextBirthday > (currentTUnix + 604800000) && birthday.nextBirthday < (currentTUnix + 615600000)) await this.env.EMAILER_QUEUE.send(birthday);
-				if (birthday.nextBirthday > (currentTUnix + 1209600000) && birthday.nextBirthday < (currentTUnix + 1220400000)) await this.env.EMAILER_QUEUE.send(birthday);
+				if (birthday.nextBirthday > currentTUnix && birthday.nextBirthday < (currentTUnix + 10800000) && birthday.onDay) await this.env.EMAILER_QUEUE.send(birthday);
+				if (birthday.nextBirthday > (currentTUnix + 86400000) && birthday.nextBirthday < (currentTUnix + 97200000) && birthday.dayBefore) await this.env.EMAILER_QUEUE.send(birthday);
+				if (birthday.nextBirthday > (currentTUnix + 604800000) && birthday.nextBirthday < (currentTUnix + 615600000) && birthday.oneWeekBefore) await this.env.EMAILER_QUEUE.send(birthday);
+				if (birthday.nextBirthday > (currentTUnix + 1209600000) && birthday.nextBirthday < (currentTUnix + 1220400000) && birthday.twoWeeksBefore) await this.env.EMAILER_QUEUE.send(birthday);
 			}
 		})
 		updatedBirthdays.sort((a, b) => a.nextBirthday - b.nextBirthday);
 		await this.state.storage?.put("birthdays", updatedBirthdays);
+
+		this.state.storage.setAlarm(Date.now() + 10800000);
 	}
 }
 
